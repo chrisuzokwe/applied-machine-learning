@@ -1,0 +1,64 @@
+# "Code for creating a linear regression model and pipeline - by Chris Uzokwe"
+
+# Download
+import pickle
+import pandas as pd
+
+with open('./datasets/appml-assignment1-dataset.pkl', 'rb') as f:
+    data = pickle.load(f)
+
+# Separate Data from pkl file
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+X = data['X']
+X = X.drop('date', axis=1)
+y = data['y']
+
+# Run data through pipeline/preprocessing
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.impute import SimpleImputer
+
+pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy="mean")),
+    ('norm_scaler', MinMaxScaler()),
+])
+
+preparedX = pipeline.fit_transform(X)
+preparedX = pd.DataFrame(preparedX, columns = X.columns, index=X.index)
+preparedX.describe()
+
+dy = y.values.reshape(-1,1)
+preparedY = pipeline.fit_transform(dy)
+preparedY = pd.DataFrame(preparedY, columns = ["CAD-high"])
+preparedY.describe()
+
+train_setX, test_setX, train_setY, test_setY = train_test_split(preparedX, preparedY, test_size=0.2, random_state=34)
+
+pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy="mean")),
+    ('norm_scaler', MinMaxScaler()),
+])
+
+#implement model on data
+from sklearn.linear_model import LinearRegression
+lin_reg = LinearRegression()
+lin_reg.fit(train_setX, train_setY)
+
+#perform evaluation with crossvalidation
+from sklearn.model_selection import cross_val_score
+scores = cross_val_score(lin_reg, train_setX, train_setY, scoring='neg_mean_squared_error', cv = 10)
+linreg_cv_scores = np.sqrt(scores)
+print(scores.mean())
+
+#test performance on witheld data
+from sklearn.metrics import mean_squared_error
+Ytestpred = lin_reg.predict(test_setX)
+testpredrmse = mean_squared_error(test_setY,Ytestpred)
+print(testpredrmse)
+
+#save model and pipeline to pkl file
+import joblib
+joblib.dump(pipeline, "pipeline1.pkl")
+joblib.dump(lin_reg, "model1.pkl")
